@@ -1,8 +1,7 @@
-package com.hivemq.prova;
+package com.hivemq.extensions.hivemqextension;
 
 import java.io.*;
 import java.util.*;
-import java.nio.*;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.nio.charset.Charset;
@@ -15,8 +14,6 @@ import com.hivemq.extension.sdk.api.packets.connect.ConnectPacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.hivemq.extension.sdk.api.services.auth.*;
-
 import cryptographic.AES;
 import cryptographic.AesException;
 
@@ -24,13 +21,7 @@ import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hivemq.extension.sdk.api.annotations.NotNull;
-import com.hivemq.extension.sdk.api.auth.Authenticator;
-import com.hivemq.extension.sdk.api.auth.Authorizer;
 import com.hivemq.extension.sdk.api.auth.EnhancedAuthenticator;
-import com.hivemq.extension.sdk.api.parameter.ExtensionStartInput;
-import com.hivemq.extension.sdk.api.parameter.ExtensionStartOutput;
-import com.hivemq.extension.sdk.api.parameter.ExtensionStopInput;
-import com.hivemq.extension.sdk.api.parameter.ExtensionStopOutput;
 
 public class MyAuthenticator implements EnhancedAuthenticator{
 
@@ -67,7 +58,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         final Optional<String> authenticationMethod = connect.getAuthenticationMethod();
         boolean fail = false;
         if(authenticationMethod.isPresent()){
-            if("registration".equals(authenticationMethod)){
+            if("registration".equals(authenticationMethod.get())){
                 if (!map.containsKey(username)){
                     //Client not yet registered
                     registerClient(username,password);
@@ -76,7 +67,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
                 }
                 else fail = true;
             }
-            else if(CHALLENGE.equals(authenticationMethod)){
+            else if(CHALLENGE.equals(authenticationMethod.get())){
                 	sendChallengeResponseAuth(enhancedAuthInput,enhancedAuthOutput,username);
             }
             else fail=true;

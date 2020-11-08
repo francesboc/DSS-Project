@@ -1,4 +1,4 @@
-package com.hivemq.prova;
+package com.hivemq.extensions.hivemqextension;
 
 import com.hivemq.extension.sdk.api.annotations.NotNull;
 import com.hivemq.extension.sdk.api.annotations.Nullable;
