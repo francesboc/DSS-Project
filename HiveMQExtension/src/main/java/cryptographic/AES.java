@@ -9,10 +9,9 @@ import javax.crypto.spec.SecretKeySpec;
 public class AES {
 	
 	private static final String CIPHER_SUITE = "AES/ECB/PKCS5Padding";
-	public static final String CHAR_SET = "UTF-8";
 	private static final int KEY_LENGTH = 32; //measured in byte
 	private static byte [] key;
-
+	public static final String CHAR_SET = "UTF-8";
 	
 	public static void setKey(String myKey) 
 			throws AesException {
