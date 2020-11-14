@@ -1,33 +1,32 @@
 package com.hivemq.extensions.hivemqextension;
 
-import java.io.*;
-import java.util.*;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-
-import com.hivemq.extension.sdk.api.auth.parameter.*;
-import com.hivemq.extension.sdk.api.packets.connect.ConnectPacket;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import cryptographic.AES;
-import cryptographic.AesException;
-
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hivemq.extension.sdk.api.annotations.NotNull;
 import com.hivemq.extension.sdk.api.auth.EnhancedAuthenticator;
+import com.hivemq.extension.sdk.api.auth.parameter.EnhancedAuthConnectInput;
+import com.hivemq.extension.sdk.api.auth.parameter.EnhancedAuthInput;
+import com.hivemq.extension.sdk.api.auth.parameter.EnhancedAuthOutput;
+import com.hivemq.extension.sdk.api.packets.connect.ConnectPacket;
+import cryptographic.AES;
+import cryptographic.AesException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Map;
+import java.util.Optional;
 
 public class MyAuthenticator implements EnhancedAuthenticator{
 
     private static final @NotNull Logger log = LoggerFactory.getLogger(MyAuthenticator.class);
     private static final String CHALLENGE = "authChallenge";
-    private static String file = "/home/Scrivania/prova/file.json";
+    private static final String file = "/home/Scrivania/prova/file.json";
     private Map<String,String> map;
 
     public MyAuthenticator(){
@@ -53,7 +52,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         
         //get username and password from the connect packet
         String username = connect.getUserName().get();
-        String password = Charset.forName("UTF-8").decode(connect.getPassword().get()).toString();
+        String password = StandardCharsets.UTF_8.decode(connect.getPassword().get()).toString();
         
         final Optional<String> authenticationMethod = connect.getAuthenticationMethod();
         boolean fail = false;
@@ -75,8 +74,6 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         else fail = true;
 
         if(fail) enhancedAuthOutput.failAuthentication();
-      
-        return;
     }
 
     @Override

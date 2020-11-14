@@ -3,3 +3,5 @@ HiveMQExtension/bin
 HiveMQExtension/target
 HiveMQExtension/.classpath
 HiveMQExtension/.project
+.idea/
+MQTT-Client/.idea
