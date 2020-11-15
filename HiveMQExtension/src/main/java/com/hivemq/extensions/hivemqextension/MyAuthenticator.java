@@ -9,6 +9,7 @@ import com.hivemq.extension.sdk.api.auth.parameter.EnhancedAuthConnectInput;
 import com.hivemq.extension.sdk.api.auth.parameter.EnhancedAuthInput;
 import com.hivemq.extension.sdk.api.auth.parameter.EnhancedAuthOutput;
 import com.hivemq.extension.sdk.api.packets.connect.ConnectPacket;
+import com.hivemq.extension.sdk.api.packets.general.UserProperties;
 import cryptographic.AES;
 import cryptographic.AesException;
 import org.slf4j.Logger;
@@ -49,35 +50,47 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         final Optional<String> authenticationMethod = connect.getAuthenticationMethod();
         boolean fail = false;
         String username = "";
+        UserProperties userProperties = connect.getUserProperties();
+        Optional<String> usernameProperty = userProperties.getFirst("username");
 
         //username is always required
-        if (!connect.getUserName().isPresent()) {
+        if (!connect.getUserName().isPresent() && (!usernameProperty.isPresent() || usernameProperty.isEmpty() )) {
             fail = true;
+            log.info("username not present");
         }
-        else {
-            username = connect.getUserName().get();
-
+        else if(!connect.getUserName().isPresent()) {
+            //authentication method
+            log.info("username present in authentication" + usernameProperty.get());
+            username = usernameProperty.get();
             if(authenticationMethod.isPresent()) {
+                log.info("authPresent " + authenticationMethod.get());
                 if(CHALLENGE.equals(authenticationMethod.get())) {
-                    log.info("authenticating client");
+                    log.info("authenticating client " + authenticationMethod.get());
                     sendChallengeResponseAuth(enhancedAuthInput, enhancedAuthOutput, username);
                 }
-                else fail = true;
-
-            }//registration by simple auth
-            else if(connect.getPassword().isPresent()) {
-                String password = Charset.forName("UTF-8").decode(connect.getPassword().get()).toString();
-                if (!map.containsKey(username)){
-                    log.info("registering client");
-                    //Client not yet registered
-                    registerClient(username,password);
-                    enhancedAuthOutput.authenticateSuccessfully();
+                else{
+                    log.info("challenge not equal " + authenticationMethod.get());
+                    fail = true;
                 }
-                else fail = true;
-
             }
-            else fail = true;
+            else{
+                log.info("auth not present");
+                fail = true;
+            }
         }
+        else if(connect.getPassword().isPresent()) {
+            //registration by simple auth
+            log.info("username present in registration");
+            username = connect.getUserName().get();
+            String password = Charset.forName("UTF-8").decode(connect.getPassword().get()).toString();
+            if (!map.containsKey(username)) {
+                log.info("registering client");
+                //Client not yet registered
+                registerClient(username, password);
+                enhancedAuthOutput.authenticateSuccessfully();
+            } else fail = true;
+        }
+        else fail=true;
 
         if(fail) enhancedAuthOutput.failAuthentication();
         log.info("END: onConnect");
@@ -87,16 +100,17 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     public void onAuth(final @NotNull EnhancedAuthInput input, final @NotNull EnhancedAuthOutput output) {
     	log.info("BEGIN: onAuth");
     	final String authententicationMethod = input.getAuthPacket().getAuthenticationMethod();
-    	
+        log.info("auth method " + authententicationMethod);
     	if(CHALLENGE.equals(authententicationMethod)) {
     		final Optional<String> safeLongEncrypted = input.getConnectionInformation().getConnectionAttributeStore().getAsString(CHALLENGE);
     		final Optional<byte[]> authenticationData = input.getAuthPacket().getAuthenticationDataAsArray();
- 
+
     		if(safeLongEncrypted.isEmpty() || authenticationData.isEmpty()) {
+                log.info("empty");
     			output.failAuthentication();
     			return;
     		}
-    		log.debug("safeLongEcrypted: " + safeLongEncrypted.get() + " authenticationData: " + new String(authenticationData.get()));
+    		log.info("safeLongEcrypted: " + safeLongEncrypted.get() + "! authenticationData: " + new String(authenticationData.get()));
     		if(safeLongEncrypted.get().equals(new String(authenticationData.get()))) {
     			output.authenticateSuccessfully();
     			return;
@@ -152,6 +166,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     	String password = map.get(username);
     	String safeLongEncrypted = "";
     	log.debug("safeLong: " + safeLong + " password: " + password);
+    	log.info("password "+ password);
     	try {
     		AES.setKey(password);
 			safeLongEncrypted = AES.encrypt(safeLong);
@@ -162,6 +177,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     	input.getConnectionInformation()
     			.getConnectionAttributeStore()  //store data to verify client  
     				.putAsString(CHALLENGE, safeLongEncrypted); //store encrypted long on broker
+        log.info("safe long-> " + safeLong);
     	output.continueAuthentication(safeLong.getBytes(StandardCharsets.UTF_8)); //send plain long to the client
     	log.info("END: sendChallengeResponseAuth");
     }

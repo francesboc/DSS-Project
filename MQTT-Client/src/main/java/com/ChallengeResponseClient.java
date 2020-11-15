@@ -54,17 +54,14 @@ public class ChallengeResponseClient {
         else{
             client.toBlocking()
                     .connectWith()
+                    .userProperties()
+                        .add("username", clientArgs.getUsername())
+                        .applyUserProperties()
                     .enhancedAuth(new ChallengeResponseAuthMechanism(clientArgs))
                     .send();
             log.debug("auth inviato");
         }
-        /*final Mqtt5Client client = Mqtt5Client.builder()
-                .serverHost("localhost")
-                .serverPort(1883)
-                .enhancedAuth(new ChallengeResponseAuthMechanism(clientArgs))
-                .build();
-        client.toBlocking().connect();*/
-
+        client.toBlocking().disconnect();
     }
 
     private static void checkInput(String[] args){
