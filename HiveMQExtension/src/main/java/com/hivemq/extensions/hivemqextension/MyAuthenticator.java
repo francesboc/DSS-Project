@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -27,7 +28,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
 
     private static final @NotNull Logger log = LoggerFactory.getLogger(MyAuthenticator.class);
     private static final String CHALLENGE = "authChallenge";
-    private static final String file = "/home/Scrivania/file.json";
+    private static final String file = System.getProperty("user.dir") + "/file.json";
     private Map<String,String> map;
 
     public MyAuthenticator(){
@@ -42,7 +43,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
 
     @Override
     public void onConnect(EnhancedAuthConnectInput enhancedAuthInput, EnhancedAuthOutput enhancedAuthOutput) {
-        
+        log.info("BEGIN: onConnect");
         //get the contents of the MQTT connect packet from the input object
         ConnectPacket connect = enhancedAuthInput.getConnectPacket();
         final Optional<String> authenticationMethod = connect.getAuthenticationMethod();
@@ -57,18 +58,20 @@ public class MyAuthenticator implements EnhancedAuthenticator{
             username = connect.getUserName().get();
 
             if(authenticationMethod.isPresent()) {
-                if(CHALLENGE.equals(authenticationMethod.get()))
-                    sendChallengeResponseAuth(enhancedAuthInput,enhancedAuthOutput,username);
+                if(CHALLENGE.equals(authenticationMethod.get())) {
+                    log.info("authenticating client");
+                    sendChallengeResponseAuth(enhancedAuthInput, enhancedAuthOutput, username);
+                }
                 else fail = true;
 
             }//registration by simple auth
             else if(connect.getPassword().isPresent()) {
                 String password = Charset.forName("UTF-8").decode(connect.getPassword().get()).toString();
                 if (!map.containsKey(username)){
+                    log.info("registering client");
                     //Client not yet registered
                     registerClient(username,password);
                     enhancedAuthOutput.authenticateSuccessfully();
-
                 }
                 else fail = true;
 
@@ -77,6 +80,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         }
 
         if(fail) enhancedAuthOutput.failAuthentication();
+        log.info("END: onConnect");
     }
 
     @Override
@@ -118,6 +122,14 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         map.put(username, new String(pass_bytes));
         log.info("map.put");
         ObjectMapper mapper = new ObjectMapper();
+        if (Files.notExists(Paths.get(file))) {
+            // file is not exist
+            try {
+                Files.createFile(Paths.get(file));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
         try {
 			mapper.writeValue(Paths.get(file).toFile(), map);
             log.info("mapper.wrtievalue");

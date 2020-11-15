@@ -20,7 +20,7 @@ public class ChallengeResponseAuthMain implements ExtensionMain {
 
     @Override
     public void extensionStart(final @NotNull ExtensionStartInput extensionStartInput, final @NotNull ExtensionStartOutput extensionStartOutput) {
-    	//Registering Authenticator
+        //Registering Authenticator
         Services.securityRegistry().setEnhancedAuthenticatorProvider(i-> new MyAuthenticator());
     }
 
