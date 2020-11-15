@@ -26,7 +26,7 @@
     <description>HiveMQ 4 Hello World Extension - a simple reference for all extension developers</description>
 
     <properties>
-        <extension.name>Hello World Extension</extension.name>
+        <extension.name>Challenge Response Extension</extension.name>
         <extension.author>HiveMQ GmbH</extension.author>
         <asciidoctor.version>1.5.7.1</asciidoctor.version>
         <output.dir>${basedir}</output.dir>

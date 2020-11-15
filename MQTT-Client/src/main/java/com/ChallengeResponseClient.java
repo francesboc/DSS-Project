@@ -10,82 +10,78 @@ import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5EnhancedAuthBuilder;
 import com.hivemq.client.mqtt.mqtt5.message.connect.Mqtt5Connect;
 import com.hivemq.client.mqtt.mqtt5.message.connect.connack.Mqtt5ConnAck;
 import com.hivemq.client.mqtt.mqtt5.message.disconnect.Mqtt5Disconnect;
+import com.Arguments;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.hivemq.extension.sdk.api.annotations.NotNull;
 
 public class ChallengeResponseClient {
 
+    private static Arguments clientArgs;
+    private static final @NotNull Logger log = LoggerFactory.getLogger(ChallengeResponseClient.class.getName());
+
     public static void main(String[] args) {
-        final Mqtt5Client client = Mqtt5Client.builder()
-                .serverHost("localhost")
+        try{
+            checkInput(args);
+        }
+        catch (IllegalArgumentException e){
+            log.error("Exception thrown at extension start: ", e);
+            printUsage();
+            System.exit(1);
+        }
+
+        Mqtt5Client client = Mqtt5Client.builder()
+                .identifier(UUID.randomUUID().toString())
+                .serverHost("192.168.1.10")
                 .serverPort(1883)
-                .enhancedAuth(new ChallengeResponseAuthMechanism())
                 .build();
 
-        client.toBlocking().connect();
+
+        if(clientArgs.isRegisterMethod()){
+            client.toBlocking()
+                    .connectWith()
+                    .simpleAuth()
+                        .username(clientArgs.getUsername())
+                        .password(clientArgs.getPassword().getBytes())
+                        .applySimpleAuth()
+                    .send();
+            log.debug("registrazione inviata");
+        }
+        else{
+            client.toBlocking()
+                    .connectWith()
+                    .enhancedAuth(new ChallengeResponseAuthMechanism(clientArgs))
+                    .send();
+            log.debug("auth inviato");
+        }
+        /*final Mqtt5Client client = Mqtt5Client.builder()
+                .serverHost("localhost")
+                .serverPort(1883)
+                .enhancedAuth(new ChallengeResponseAuthMechanism(clientArgs))
+                .build();
+        client.toBlocking().connect();*/
+
     }
 
-    public static class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanism{
+    private static void checkInput(String[] args){
 
-        @Override
-        public @org.jetbrains.annotations.NotNull MqttUtf8String getMethod() {
-            return null;
-        }
+        if(args.length != 4 && args.length != 5) throw new IllegalArgumentException("Username and password required");
+        //System.out.println("ciao" + args[0]);
+        if(!args[0].equals("-u") && !args[2].equals("-p")) throw new IllegalArgumentException("Bad arguments");
+        if(args.length == 5 && (!args[4].equals("-r") && !args[4].equals("--register"))) throw new IllegalArgumentException("Bad arguments");
 
-        @Override
-        public int getTimeout() {
-            return 0;
-        }
-
-        @Override
-        public @org.jetbrains.annotations.NotNull CompletableFuture<Void> onAuth(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Mqtt5Connect connect, @org.jetbrains.annotations.NotNull Mqtt5EnhancedAuthBuilder authBuilder) {
-            return null;
-        }
-
-        @Override
-        public @org.jetbrains.annotations.NotNull CompletableFuture<Void> onReAuth(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Mqtt5AuthBuilder authBuilder) {
-            return null;
-        }
-
-        @Override
-        public @org.jetbrains.annotations.NotNull CompletableFuture<Boolean> onServerReAuth(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Mqtt5Auth auth, @org.jetbrains.annotations.NotNull Mqtt5AuthBuilder authBuilder) {
-            return null;
-        }
-
-        @Override
-        public @org.jetbrains.annotations.NotNull CompletableFuture<Boolean> onContinue(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Mqtt5Auth auth, @org.jetbrains.annotations.NotNull Mqtt5AuthBuilder authBuilder) {
-            return null;
-        }
-
-        @Override
-        public @org.jetbrains.annotations.NotNull CompletableFuture<Boolean> onAuthSuccess(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Mqtt5ConnAck connAck) {
-            return null;
-        }
-
-        @Override
-        public @org.jetbrains.annotations.NotNull CompletableFuture<Boolean> onReAuthSuccess(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Mqtt5Auth auth) {
-            return null;
-        }
-
-        @Override
-        public void onAuthRejected(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Mqtt5ConnAck connAck) {
-
-        }
-
-        @Override
-        public void onReAuthRejected(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Mqtt5Disconnect disconnect) {
-
-        }
-
-        @Override
-        public void onAuthError(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Throwable cause) {
-
-        }
-
-        @Override
-        public void onReAuthError(@org.jetbrains.annotations.NotNull Mqtt5ClientConfig clientConfig, @org.jetbrains.annotations.NotNull Throwable cause) {
-
-        }
+        clientArgs = new Arguments();
+        clientArgs.setUsername(args[1]);
+        clientArgs.setPassword(args[2]);
+        clientArgs.setAuthMethod(args.length == 5);
     }
+
+    private static void printUsage(){
+        System.out.println("TO_DO");
+    }
+
 }

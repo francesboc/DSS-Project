@@ -3,5 +3,10 @@ HiveMQExtension/bin
 HiveMQExtension/target
 HiveMQExtension/.classpath
 HiveMQExtension/.project
+HiveMQExtension/dependency-reduced-pom.xml
+HiveMQExtension/HiveMQExtension.iml
+HiveMQExtension/.idea
 .idea/
 MQTT-Client/.idea
+MQTT-Client/MQTT-Client.iml
+MQTT-Client/target

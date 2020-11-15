@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
@@ -26,7 +27,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
 
     private static final @NotNull Logger log = LoggerFactory.getLogger(MyAuthenticator.class);
     private static final String CHALLENGE = "authChallenge";
-    private static final String file = "/home/Scrivania/prova/file.json";
+    private static final String file = "/home/Scrivania/file.json";
     private Map<String,String> map;
 
     public MyAuthenticator(){
@@ -44,20 +45,25 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         
         //get the contents of the MQTT connect packet from the input object
         ConnectPacket connect = enhancedAuthInput.getConnectPacket();
-        
-        //check if the client set username and password
-        if (!connect.getUserName().isPresent() || !connect.getPassword().isPresent()) {
-            enhancedAuthOutput.failAuthentication();
-        }
-        
-        //get username and password from the connect packet
-        String username = connect.getUserName().get();
-        String password = StandardCharsets.UTF_8.decode(connect.getPassword().get()).toString();
-        
         final Optional<String> authenticationMethod = connect.getAuthenticationMethod();
         boolean fail = false;
-        if(authenticationMethod.isPresent()){
-            if("registration".equals(authenticationMethod.get())){
+        String username = "";
+
+        //username is always required
+        if (!connect.getUserName().isPresent()) {
+            fail = true;
+        }
+        else {
+            username = connect.getUserName().get();
+
+            if(authenticationMethod.isPresent()) {
+                if(CHALLENGE.equals(authenticationMethod.get()))
+                    sendChallengeResponseAuth(enhancedAuthInput,enhancedAuthOutput,username);
+                else fail = true;
+
+            }//registration by simple auth
+            else if(connect.getPassword().isPresent()) {
+                String password = Charset.forName("UTF-8").decode(connect.getPassword().get()).toString();
                 if (!map.containsKey(username)){
                     //Client not yet registered
                     registerClient(username,password);
@@ -65,13 +71,10 @@ public class MyAuthenticator implements EnhancedAuthenticator{
 
                 }
                 else fail = true;
+
             }
-            else if(CHALLENGE.equals(authenticationMethod.get())){
-                	sendChallengeResponseAuth(enhancedAuthInput,enhancedAuthOutput,username);
-            }
-            else fail=true;
+            else fail = true;
         }
-        else fail = true;
 
         if(fail) enhancedAuthOutput.failAuthentication();
     }
@@ -108,13 +111,16 @@ public class MyAuthenticator implements EnhancedAuthenticator{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+        log.info("generated md");
         byte[] pass_bytes = password.getBytes(StandardCharsets.UTF_8);
         pass_bytes = md.digest(pass_bytes);
         //add client to the json file
-        map.put(username, pass_bytes.toString());
+        map.put(username, new String(pass_bytes));
+        log.info("map.put");
         ObjectMapper mapper = new ObjectMapper();
         try {
 			mapper.writeValue(Paths.get(file).toFile(), map);
+            log.info("mapper.wrtievalue");
 		} catch (JsonGenerationException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -125,7 +131,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-        log.info("END: sendChallengeResponseAuth");
+        log.info("END: registerClient");
     }
     
     private void sendChallengeResponseAuth(EnhancedAuthConnectInput input, EnhancedAuthOutput output, String username) {
