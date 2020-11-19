@@ -6,7 +6,7 @@ package com;
  */
 public class Record {
 	private String username;
-	private String pubKey;
+	private byte[] pubKey;
 	
 	public String getUsername() {
 		return username;
@@ -14,10 +14,10 @@ public class Record {
 	synchronized public void setUsername(String username) {
 		this.username = username;
 	}
-	public String getPubKey() {
+	public byte[] getPubKey() {
 		return pubKey;
 	}
-	synchronized public void setPubKey(String pubKey) {
+	synchronized public void setPubKey(byte[] pubKey) {
 		this.pubKey = pubKey;
 	}
 	

@@ -75,11 +75,12 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
                     e.printStackTrace();
                 }
                 byte[] pass_bytes = clientArgs.getPassword().getBytes(StandardCharsets.UTF_8);
+                System.out.println("Password: " + clientArgs.getPassword());
                 pass_bytes = md.digest(pass_bytes);
                 AES.setKey(new String(pass_bytes));
 
 				String safeLongEncrypted = AES.encrypt(safeLong);
-				log.debug("safeLongEncrypted "+safeLongEncrypted);
+				System.out.println("safeLongEncrypted "+safeLongEncrypted);
 				authBuilder.data(safeLongEncrypted.getBytes(StandardCharsets.UTF_8));
 				return CompletableFuture.completedFuture(true);
 			} catch (AesException e) {

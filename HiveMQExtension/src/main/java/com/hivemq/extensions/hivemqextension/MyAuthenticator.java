@@ -170,7 +170,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     	try {
     		AES.setKey(password);
 			safeLongEncrypted = AES.encrypt(safeLong);
-			log.debug("safeLongEncrypted: " + safeLongEncrypted);
+			log.info("safeLongEncrypted: " + safeLongEncrypted);
 		} catch (AesException e) {
 			log.error("Exception thrown at AES.encrypt: ", e);
 		}

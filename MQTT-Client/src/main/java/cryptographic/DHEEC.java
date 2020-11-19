@@ -6,7 +6,7 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
-
+import static javax.xml.bind.DatatypeConverter.parseHexBinary;
 
 import javax.crypto.KeyAgreement;
 
@@ -45,6 +45,17 @@ public class DHEEC {
 	
 	public void computeSecretKey(byte [] otherPk) throws DHEECException{
 		try {
+			/*StringBuilder tmpPublickKey = new StringBuilder();
+			for(int i=0; i<otherPk.length; i++){
+				tmpPublickKey.append(Integer.toString(otherPk[i],16));
+			}
+			otherPk = tmpPublickKey.toString().getBytes();
+			System.out.println("otherpk: " + otherPk);
+			for(int i=0; i< otherPk.length;i++){
+				System.out.print((char)otherPk[i]+ " ");
+			}
+			System.out.println();*/
+
 			KeyFactory kf = KeyFactory.getInstance("EC");
 		    X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(otherPk);
 		    PublicKey otherPublicKey = kf.generatePublic(pkSpec);
@@ -56,6 +67,8 @@ public class DHEEC {
 		    this.sharedSecret = ka.generateSecret();
 		}
 		catch(Exception e) {
+			System.out.println(e);
+			e.printStackTrace();
 			throw new DHEECException(e.getMessage());
 		}
 	} 
