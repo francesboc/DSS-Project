@@ -15,7 +15,11 @@ import cryptographic.AesException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -36,6 +40,17 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         try {
             ObjectMapper mapper = new ObjectMapper();
             // convert JSON file to map
+            if (Files.notExists(Paths.get(file))) {
+                //create empty json file
+                byte[] tmp = "{}".getBytes();
+                ByteBuffer byteBuffer = ByteBuffer.wrap(tmp);
+                byteBuffer.flip();
+                Files.createFile(Paths.get(file));
+                FileChannel fileChannel = FileChannel.open(Paths.get(file));
+                while (byteBuffer.hasRemaining())
+                    fileChannel.write(byteBuffer);
+                byteBuffer.clear();
+            }
             map = mapper.readValue(Paths.get(file).toFile(), Map.class);
         } catch (Exception e) {
             log.error("Exception thrown at extension start: ", e);
@@ -86,8 +101,9 @@ public class MyAuthenticator implements EnhancedAuthenticator{
             if (!map.containsKey(username)) {
                 log.info("registering client");
                 //Client not yet registered
-                registerClient(username, password);
-                enhancedAuthOutput.authenticateSuccessfully();
+                boolean registrationOk = registerClient(username, password);
+                if (registrationOk) enhancedAuthOutput.authenticateSuccessfully();
+                else fail = true;
             } else fail = true;
         }
         else fail=true;
@@ -120,44 +136,29 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     	log.info("END: onAuth failed");
     }
 
-    private void registerClient(String username, String password){
-    	log.info("BEGIN: registerClient");
+    private boolean registerClient(String username, String password) {
+        log.info("BEGIN: registerClient");
         MessageDigest md = null;
-		try {
-			md = MessageDigest.getInstance("SHA-256");
-		} catch (NoSuchAlgorithmException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        log.info("generated md");
-        byte[] pass_bytes = password.getBytes(StandardCharsets.UTF_8);
-        pass_bytes = md.digest(pass_bytes);
-        //add client to the json file
-        map.put(username, new String(pass_bytes));
-        log.info("map.put");
-        ObjectMapper mapper = new ObjectMapper();
-        if (Files.notExists(Paths.get(file))) {
-            // file is not exist
-            try {
-                Files.createFile(Paths.get(file));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
         try {
-			mapper.writeValue(Paths.get(file).toFile(), map);
-            log.info("mapper.wrtievalue");
-		} catch (JsonGenerationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (JsonMappingException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+            md = MessageDigest.getInstance("SHA-256");
+            log.info("generated md");
+            byte[] pass_bytes = password.getBytes(StandardCharsets.UTF_8);
+            pass_bytes = md.digest(pass_bytes);
+            //add client to the json file
+            map.put(username, new String(pass_bytes));
+            log.info("map.put");
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.writeValue(Paths.get(file).toFile(), map);
+            log.info("mapper.write value");
+        }
+         catch (Exception e) {
+            e.printStackTrace();
+            log.error("Error while creating json file");
+            log.info("END: registerClient (failed)");
+            return false;
+        }
         log.info("END: registerClient");
+        return true;
     }
     
     private void sendChallengeResponseAuth(EnhancedAuthConnectInput input, EnhancedAuthOutput output, String username) {

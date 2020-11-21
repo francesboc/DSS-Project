@@ -22,7 +22,21 @@ public class AES {
 			throw new AesException(e.getMessage());
 		}
 	}
-	
+
+	public static String decrypt(String strEncypted) throws AesException{
+		try {
+			Cipher cipher = Cipher.getInstance(CIPHER_SUITE);
+			SecretKeySpec secretKey = new SecretKeySpec(Arrays.copyOf(key, KEY_LENGTH), "AES");
+			cipher.init(Cipher.DECRYPT_MODE, secretKey);
+
+			return Base64.getEncoder().encodeToString(cipher.doFinal(strEncypted.getBytes(CHAR_SET)));
+		}
+		catch(Exception e) {
+			throw new AesException(e.getMessage());
+
+		}
+	}
+
 	public static String encrypt(String strToEncrypt ) throws AesException {
 		try {
 			Cipher cipher = Cipher.getInstance(CIPHER_SUITE);

@@ -6,7 +6,6 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
-import static javax.xml.bind.DatatypeConverter.parseHexBinary;
 
 import javax.crypto.KeyAgreement;
 
@@ -18,7 +17,7 @@ public class DHEEC {
 	private KeyPairGenerator kpg;
 	private KeyPair keyPair;
 	private byte [] sharedSecret;
-	
+
 	
 	public DHEEC() throws DHEECException {
 		try {
@@ -43,7 +42,7 @@ public class DHEEC {
 	 * @brief: executes DH key agreement computation 
 	 */
 	
-	public void computeSecretKey(byte [] otherPk) throws DHEECException{
+	public byte[] computeSecretKey(byte [] otherPk) throws DHEECException{
 		try {
 			/*StringBuilder tmpPublickKey = new StringBuilder();
 			for(int i=0; i<otherPk.length; i++){
@@ -65,12 +64,18 @@ public class DHEEC {
 		    ka.init(keyPair.getPrivate());
 		    ka.doPhase(otherPublicKey, true);
 		    this.sharedSecret = ka.generateSecret();
+			System.out.println("chiave di sessione generata");
+		    for(int i=0; i< sharedSecret.length;i++){
+		    	System.out.print(sharedSecret[i]+ " ");
+			}
+		    System.out.println();
 		}
 		catch(Exception e) {
 			System.out.println(e);
 			e.printStackTrace();
 			throw new DHEECException(e.getMessage());
 		}
+		return sharedSecret;
 	} 
 	
 	public byte [] getSymmetricKey() {

@@ -6,7 +6,11 @@ import com.hivemq.client.mqtt.mqtt5.Mqtt5Client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.UUID;
+
+import cryptographic.AES;
+import cryptographic.AesException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,14 +22,13 @@ import cryptographic.DHEECException;
 public class ChallengeResponseClient {
 
     private static Arguments clientArgs;
-    private static final Record record = new Record();
     private static DHEEC dheec = null;
     private static  Mqtt5Client client = null;
     private static final String AGREE_KEY = "agreekey"; //username -> pubblica la chiave pubblica a userneame/pubkey
-    private static final String SEND_MESSAGE = "send"; // pubblica -> usernameDestinatorio/message
+    private static final String SEND_MESSAGE = "send-message"; // pubblica -> usernameDestinatorio/message
     private static final String QUIT = "quit";
     private static final @NotNull Logger log = LoggerFactory.getLogger(ChallengeResponseClient.class.getName());
-   
+    private static final HashMap<String, byte[]> keySessionData = new HashMap<>();
 
     public static void main(String[] args) {
         try{
@@ -39,7 +42,7 @@ public class ChallengeResponseClient {
 
         client = Mqtt5Client.builder()
                 .identifier(UUID.randomUUID().toString())
-                .serverHost("192.168.1.8")
+                .serverHost("")
                 .serverPort(1883)
                 .build();
 
@@ -63,16 +66,17 @@ public class ChallengeResponseClient {
                     .send();
             log.debug("auth inviato");
         }
-      
-		try {
-			dheec = new DHEEC();
-		} catch (DHEECException e1) {
-			//to do exception management 
-			e1.printStackTrace();
-			System.exit(1);
-		}
+
+        //geenerating public key
+        try{
+            dheec = new DHEEC();
+        } catch (DHEECException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
         //publishing client public key
         publishData(clientArgs.getUsername()+"/pubKey", dheec.getPubKey());
+
         String line = "";
         String [] token;
         boolean done = false;
@@ -81,7 +85,6 @@ public class ChallengeResponseClient {
         	try {
 				line = reader.readLine();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
         	token = line.split(" ");
@@ -129,21 +132,39 @@ public class ChallengeResponseClient {
      * @brief: subscribe this to topic topic
      * @param: topic
      */
-    private static void subscribe(String topic) {
+    private static void subscribeToTopic(String topic) {
     	System.out.println("BEGIN subscribe to topic "+ topic);
     	client.toAsync().subscribeWith()
                 .topicFilter(topic)
                 .qos(MqttQos.AT_LEAST_ONCE)
                 .callback(publish -> {
                     //reciverUser has published its public key. I save it
-                    record.setPubKey(publish.getPayloadAsBytes());
+                    //record.setPubKey(publish.getPayloadAsBytes());
                     System.out.println("Received message on topic " + publish.getTopic() + ": " + publish.getPayloadAsBytes());
-                    try {
-                        dheec.computeSecretKey(publish.getPayloadAsBytes());
-                    } catch (DHEECException e) {
-                        //to do exception management
-                        e.printStackTrace();
-                        System.exit(1);
+                    if(topic.contains("messages")){
+                        String [] tokens = topic.split("/");
+                        String decryptedMessage = "";
+                        byte[] receivedMessage = publish.getPayloadAsBytes();
+                        for(int i=0; i< receivedMessage.length;i++){
+                            System.out.print((int)receivedMessage[i]+ " ");
+                        }
+                        System.out.println();
+                        //decrypt message
+                        try {
+                            AES.setKey(new String(keySessionData.get(tokens[0])));
+                            decryptedMessage = AES.decrypt(new String(publish.getPayloadAsBytes()));
+                            System.out.println(decryptedMessage);
+                        } catch (AesException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    else {
+                        try {
+                            //association with username of the client and private key session
+                            keySessionData.put(topic.split("/")[0], dheec.computeSecretKey(publish.getPayloadAsBytes()));
+                        } catch (DHEECException e) {
+                            e.printStackTrace();
+                        }
                     }
                 })
                 .send();
@@ -153,30 +174,39 @@ public class ChallengeResponseClient {
     private static void publishData(String topic, byte[] data) {
 
        System.out.println("BEGIN publish "+data+" at topic "+topic);
-       /*for(int i=0; i< data.length;i++){
-           System.out.print((char)data[i]+ " ");
+       for(int i=0; i< data.length;i++){
+           System.out.print((int)data[i]+ " ");
        }
        System.out.println();
-       data = data.replaceAll(" ", "");*/
+       //data = data.replaceAll(" ", "");
+        boolean isRetain = !topic.contains("messages");
         client.toBlocking().publishWith()
                 .topic(topic)
                 .payload(data)
                 .qos(MqttQos.AT_LEAST_ONCE)
-                .retain(true)
+                .retain(isRetain)
                 .send();
-
         System.out.println("END publish");
     	
     }
 
     private static void agreeKey(String receiverUser) {
     	//la subscribe al topic per ricever i messaggi
-    	subscribe(receiverUser+"/pubKey");
+    	subscribeToTopic(receiverUser+"/pubKey");
+    	subscribeToTopic(receiverUser+"/messages");
     }
-    
-    private static void sendMessage(String reciverUser, String message) {
-    	
+
+    private static void sendMessage(String receiverUser, String message) {
+    	System.out.println("BEGIN sendMessage: user " + receiverUser + " message " +message);
+        String encryptedMessage = "";
+        try{
+            AES.setKey(new String(keySessionData.get(receiverUser)));
+            encryptedMessage = AES.encrypt(message);
+            System.out.println("Encrypted message: "+ encryptedMessage);
+        } catch (AesException e) {
+            e.printStackTrace();
+        }
+        publishData(clientArgs.getUsername()+"/messages", encryptedMessage.getBytes());
+        System.out.println("END sendMessage");
     }
-    
-    
 }
