@@ -60,13 +60,12 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
     @Override
     public @NotNull CompletableFuture<Boolean> onContinue(@NotNull Mqtt5ClientConfig clientConfig, @NotNull Mqtt5Auth auth, @NotNull Mqtt5AuthBuilder authBuilder) {
     	Optional<ByteBuffer>  data =   auth.getData();
-        System.out.println("BEGIN: onContinue");
     	if(data.isPresent() && AUTH.equals(auth.getMethod().toString())) {
     		byte [] dataByte = new byte[data.get().remaining()];
     		data.get().get(dataByte);
     		String safeLong = new String(dataByte);
             System.out.println(safeLong);
-    		log.info("safeLog read "+safeLong);
+    		log.info("challenge received "+safeLong);
     		try {
                 MessageDigest md = null;
                 try {
@@ -75,12 +74,11 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
                     e.printStackTrace();
                 }
                 byte[] pass_bytes = clientArgs.getPassword().getBytes(StandardCharsets.UTF_8);
-                System.out.println("Password: " + clientArgs.getPassword());
                 pass_bytes = md.digest(pass_bytes);
                 AES.setKey(new String(pass_bytes));
 
 				String safeLongEncrypted = AES.encrypt(safeLong);
-				System.out.println("safeLongEncrypted "+safeLongEncrypted);
+                log.info("challenge received encrypted "+safeLongEncrypted);
 				authBuilder.data(safeLongEncrypted.getBytes(StandardCharsets.UTF_8));
 				return CompletableFuture.completedFuture(true);
 			} catch (AesException e) {

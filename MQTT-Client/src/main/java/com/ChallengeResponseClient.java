@@ -47,26 +47,28 @@ public class ChallengeResponseClient {
                 .serverHost("95.247.127.108")
                 .serverPort(1883)
                 .build();
-
-        if(clientArgs.isRegisterMethod()){
-            client.toBlocking()
-                    .connectWith()
-                    .simpleAuth()
+        try {
+            if (clientArgs.isRegisterMethod()) {
+                client.toBlocking()
+                        .connectWith()
+                        .simpleAuth()
                         .username(clientArgs.getUsername())
                         .password(clientArgs.getPassword().getBytes())
                         .applySimpleAuth()
-                    .send();
-            //log.debug("registrazione inviata");
-        }
-        else{
-            client.toBlocking()
-                    .connectWith()
-                    .userProperties()
+                        .send();
+            } else {
+                client.toBlocking()
+                        .connectWith()
+                        .userProperties()
                         .add("username", clientArgs.getUsername())
                         .applyUserProperties()
-                    .enhancedAuth(new ChallengeResponseAuthMechanism(clientArgs))
-                    .send();
-            //log.debug("auth inviato");
+                        .enhancedAuth(new ChallengeResponseAuthMechanism(clientArgs))
+                        .send();
+            }
+        }
+        catch(Exception e){
+            log.log(Level.SEVERE,"connection failed due to: "+e.getMessage());
+            System.exit(1);
         }
 
         log.log(Level.INFO,"client connected to the Broker");
@@ -135,7 +137,10 @@ public class ChallengeResponseClient {
         	}
         }
         log.log(Level.INFO,"Disconnecting");
-        client.toBlocking().disconnect();
+        try {
+            client.toBlocking().disconnect();
+        }
+        catch(Exception e){}
     }
 
     /**
