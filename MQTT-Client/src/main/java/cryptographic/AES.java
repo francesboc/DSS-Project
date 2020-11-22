@@ -13,7 +13,7 @@ public class AES {
 	private static byte [] key;
 	public static final String CHAR_SET = "UTF-8";
 	
-	public static void setKey(String myKey) 
+	 public static void setKey(String myKey)
 			throws AesException {
 		try{
 			key = myKey.getBytes(CHAR_SET);
@@ -23,13 +23,15 @@ public class AES {
 		}
 	}
 
-	public static String decrypt(String strEncypted) throws AesException{
+	 public static String decrypt(byte[] strEncypted,byte[] symmetricKey) throws AesException{
 		try {
+			String tmp = new String(symmetricKey);
 			Cipher cipher = Cipher.getInstance(CIPHER_SUITE);
-			SecretKeySpec secretKey = new SecretKeySpec(Arrays.copyOf(key, KEY_LENGTH), "AES");
+			SecretKeySpec secretKey = new SecretKeySpec(Arrays.copyOf(tmp.getBytes(CHAR_SET), KEY_LENGTH), "AES");
 			cipher.init(Cipher.DECRYPT_MODE, secretKey);
+			byte[] base64Decoded = Base64.getDecoder().decode(strEncypted);
 
-			return Base64.getEncoder().encodeToString(cipher.doFinal(strEncypted.getBytes(CHAR_SET)));
+			return new String(cipher.doFinal(base64Decoded),CHAR_SET);
 		}
 		catch(Exception e) {
 			throw new AesException(e.getMessage());

@@ -16,7 +16,6 @@ import javax.crypto.KeyAgreement;
 public class DHEEC {
 	private KeyPairGenerator kpg;
 	private KeyPair keyPair;
-	private byte [] sharedSecret;
 
 	
 	public DHEEC() throws DHEECException {
@@ -39,48 +38,29 @@ public class DHEEC {
 	}
 	
 	/**
-	 * @brief: executes DH key agreement computation 
+	 * @brief: executes DH key agreement computation
+	 * @param: otherPK partner public key
+	 * @throws: DHEECException if an error occurs
 	 */
 	
-	public byte[] computeSecretKey(byte [] otherPk) throws DHEECException{
+	synchronized public byte[] computeSecretKey(byte [] otherPk) throws DHEECException{
+		byte[] sharedSecret = null;
 		try {
-			/*StringBuilder tmpPublickKey = new StringBuilder();
-			for(int i=0; i<otherPk.length; i++){
-				tmpPublickKey.append(Integer.toString(otherPk[i],16));
-			}
-			otherPk = tmpPublickKey.toString().getBytes();
-			System.out.println("otherpk: " + otherPk);
-			for(int i=0; i< otherPk.length;i++){
-				System.out.print((char)otherPk[i]+ " ");
-			}
-			System.out.println();*/
-
 			KeyFactory kf = KeyFactory.getInstance("EC");
 		    X509EncodedKeySpec pkSpec = new X509EncodedKeySpec(otherPk);
 		    PublicKey otherPublicKey = kf.generatePublic(pkSpec);
 		    
-		 // Perform key agreement
+		 	//Perform key agreement
 		    KeyAgreement ka = KeyAgreement.getInstance("ECDH");
 		    ka.init(keyPair.getPrivate());
 		    ka.doPhase(otherPublicKey, true);
-		    this.sharedSecret = ka.generateSecret();
-			System.out.println("chiave di sessione generata");
-		    for(int i=0; i< sharedSecret.length;i++){
-		    	System.out.print(sharedSecret[i]+ " ");
-			}
-		    System.out.println();
+		    sharedSecret = ka.generateSecret();
 		}
 		catch(Exception e) {
-			System.out.println(e);
 			e.printStackTrace();
 			throw new DHEECException(e.getMessage());
 		}
 		return sharedSecret;
 	} 
-	
-	public byte [] getSymmetricKey() {
-		return this.sharedSecret;
-	}
-	
 
 }
