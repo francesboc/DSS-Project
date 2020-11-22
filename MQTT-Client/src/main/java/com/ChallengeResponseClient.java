@@ -20,6 +20,8 @@ import com.hivemq.extension.sdk.api.annotations.NotNull;
 import cryptographic.DHEEC;
 import cryptographic.DHEECException;
 
+import javax.sql.rowset.spi.SyncFactoryException;
+
 
 public class ChallengeResponseClient {
     //constants and global state
@@ -164,6 +166,8 @@ public class ChallengeResponseClient {
     private static void printUsage(){
 
         System.out.println("USAGE:");
+        System.out.println("java ChallengeResponseClient -u [username] -p [password] -r [to register]");
+        System.out.flush();
     }
 
     private static void printCommands(){
