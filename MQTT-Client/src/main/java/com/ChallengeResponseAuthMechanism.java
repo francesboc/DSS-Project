@@ -18,15 +18,15 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanism {
 
     private Arguments clientArgs;
     private static final String AUTH ="authChallenge";
-    private static Logger log = LoggerFactory.getLogger(ChallengeResponseAuthMechanism.class);
+    private static final @NotNull Logger log = Logger.getLogger(ChallengeResponseAuthMechanism.class.getName());
 
     public ChallengeResponseAuthMechanism (Arguments clientArgs){
         this.clientArgs = clientArgs;
@@ -84,9 +84,10 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
 				authBuilder.data(safeLongEncrypted.getBytes(StandardCharsets.UTF_8));
 				return CompletableFuture.completedFuture(true);
 			} catch (AesException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+                log.log(Level.SEVERE,"authentication failed due to: ",e.getMessage());
+                System.exit(1);
+
+            }
     		return CompletableFuture.completedFuture(false);
     	}
         return null;
@@ -94,7 +95,8 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
 
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(@NotNull Mqtt5ClientConfig clientConfig, @NotNull Mqtt5ConnAck connAck) {
-        System.out.println("BEGIN onAuthSuccess");
+        log.log(Level.SEVERE,"authentication successful");
+
         return CompletableFuture.completedFuture(true);
     }
 
@@ -105,7 +107,9 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
 
     @Override
     public void onAuthRejected(@NotNull Mqtt5ClientConfig clientConfig, @NotNull Mqtt5ConnAck connAck) {
-    	log.info("AUTHENTICATION FAILURE");
+        log.log(Level.SEVERE,"authentication rejected");
+        System.exit(1);
+
 
     }
 
@@ -116,7 +120,8 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
 
     @Override
     public void onAuthError(@NotNull Mqtt5ClientConfig clientConfig, @NotNull Throwable cause) {
-    	log.error("ERROR IN AUTH PROCESS ",cause);
+        log.log(Level.SEVERE,"authentication failed due to: ",cause.getMessage());
+        System.exit(1);
 
     }
 

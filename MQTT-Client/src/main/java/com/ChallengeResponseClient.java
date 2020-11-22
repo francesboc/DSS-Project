@@ -20,16 +20,16 @@ import com.hivemq.extension.sdk.api.annotations.NotNull;
 import cryptographic.DHEEC;
 import cryptographic.DHEECException;
 
-public class ChallengeResponseClient {
 
+public class ChallengeResponseClient {
+    //constants and global state
     private static Arguments clientArgs;
     private static DHEEC dheec = null;
     private static  Mqtt5Client client = null;
-    private static final String AGREE_KEY = "agreekey"; //username -> pubblica la chiave pubblica a userneame/pubkey
-    private static final String SEND_MESSAGE = "send-message"; // pubblica -> usernameDestinatorio/message
+    private static final String AGREE_KEY = "agreekey";
+    private static final String SEND_MESSAGE = "send-message";
     private static final String QUIT = "quit";
-    private static final String FIRST_MESSAGE = "initializingTopic";
-    private static final @NotNull Logger log = Logger.getLogger(ChallengeResponseClient.class.getName()); //LoggerFactory.getLogger(ChallengeResponseClient.class.getName());
+    private static final @NotNull Logger log = Logger.getLogger(ChallengeResponseClient.class.getName());
     private static final ConcurrentHashMap<String, byte[]> keySessionData = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
@@ -37,7 +37,7 @@ public class ChallengeResponseClient {
             checkInput(args);
         }
         catch (IllegalArgumentException e){
-            //log.error("Exception thrown at extension start: ", e);
+            log.log(Level.SEVERE, "Wrong parameters");
             printUsage();
             System.exit(1);
         }
@@ -79,7 +79,6 @@ public class ChallengeResponseClient {
         }
         //publishing client public key
         publishData(clientArgs.getUsername()+"/pubKey", dheec.getPubKey());
-        //publishData(clientArgs.getUsername()+"/messages", FIRST_MESSAGE.getBytes());
 
         String line = "";
         String [] token;
@@ -100,18 +99,27 @@ public class ChallengeResponseClient {
 				continue;
 			}
         	token = line.split(" ");
-        	if(token.length != 2 && token.length != 3 && !QUIT.equals(token[0])) {
+        	if(token.length != 2 && !QUIT.equals(token[0])) {
         		System.out.println("command not valid: "+line);
         		continue;
         	}
-        	System.out.println(token[0]);
+            if(token.length > 1 && clientArgs.getUsername().equals(token[1])){
+                log.log(Level.WARNING,"cannot execute operations with yourself");
+                continue;
+            }
         	switch(token[0]) {
         		case AGREE_KEY:
         			agreeKey(token[1].trim());
         			break;
         		case SEND_MESSAGE:
         		    try {
-                        sendMessage(token[1], token[2]);
+                        System.out.println("type your message");
+                        String message = reader.readLine();
+                        if(message.isBlank() || message.isEmpty()) {
+                            log.log(Level.WARNING, "cannot send empty message");
+                            continue;
+                        }
+                        sendMessage(token[1], message);
                     }
         		    catch(Exception e){
         		        log.log(Level.SEVERE,"send massage fail due to: "+e.getMessage());
@@ -130,6 +138,11 @@ public class ChallengeResponseClient {
         client.toBlocking().disconnect();
     }
 
+    /**
+     *
+     * @param args
+     * @biref parser of args
+     */
     private static void checkInput(String[] args){
 
         if(args.length != 4 && args.length != 5) throw new IllegalArgumentException("Username and password required");
@@ -145,20 +158,21 @@ public class ChallengeResponseClient {
 
     private static void printUsage(){
 
-        System.out.println("TO_DO");
+        System.out.println("USAGE:");
     }
 
     private static void printCommands(){
         System.out.println("agreekey [username partner]");
-        System.out.println("send-message [username partner] [message]");
+        System.out.println("send-message [username receiver]");
         System.out.println("quit to exit");
         System.out.println();
         System.out.flush();
     }
 
-    /*
-     * @brief: subscribe this to topic topic
-     * @param: topic
+    /**
+     *
+     * @param topic
+     * @brief subscribe this to the topic
      */
     private static void subscribeToTopic(String topic) {
     	System.out.println("BEGIN subscribe to topic "+ topic);
@@ -197,7 +211,13 @@ public class ChallengeResponseClient {
                 .send();
     	log.log(Level.INFO,"END subscribe");
     }
-    
+
+    /**
+     *
+     * @param topic
+     * @param data
+     * @brief public data on the topic
+     */
     private static void publishData(String topic, byte[] data) {
 
        log.log(Level.INFO,"BEGIN publish "+toString(data)+" at topic "+topic);
@@ -212,12 +232,25 @@ public class ChallengeResponseClient {
     	
     }
 
+    /**
+     *
+     * @param receiverUser
+     * @brief performs key agreement with receiverUser
+     */
     private static void agreeKey(String receiverUser) {
-    	//la subscribe al topic per ricever i messaggi
+    	//in order to receive receiverUser public key
     	subscribeToTopic(receiverUser+"/pubKey");
+    	//in order to receive messages from receiverUser
     	subscribeToTopic(receiverUser+"/"+clientArgs.getUsername()+"/messages");
     }
 
+    /**
+     *
+     * @param receiverUser
+     * @param message
+     * @throws AesException
+     * @brief send encrypted message to receiverUser
+     */
     private static void sendMessage(String receiverUser, String message) throws AesException {
         log.log(Level.INFO,"BEGIN sendMessage: user " + receiverUser + " message " +message);
         String encryptedMessage = "";
@@ -235,6 +268,11 @@ public class ChallengeResponseClient {
         log.log(Level.INFO,"END sendMessage");
     }
 
+    /**
+     *
+     * @param data byte array
+     * @return exa string of data
+     */
     private static String toString(byte [] data){
         StringBuffer stringBuffer = new StringBuffer(0);
         for (byte b : data) {
