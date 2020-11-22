@@ -10,6 +10,8 @@ import com.hivemq.extension.sdk.api.auth.parameter.EnhancedAuthInput;
 import com.hivemq.extension.sdk.api.auth.parameter.EnhancedAuthOutput;
 import com.hivemq.extension.sdk.api.packets.connect.ConnectPacket;
 import com.hivemq.extension.sdk.api.packets.general.UserProperties;
+import com.hivemq.extension.sdk.api.services.Services;
+import com.hivemq.extension.sdk.api.services.session.ClientService;
 import cryptographic.AES;
 import cryptographic.AesException;
 import org.slf4j.Logger;
@@ -28,30 +30,25 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public class MyAuthenticator implements EnhancedAuthenticator{
 
     private static final @NotNull Logger log = LoggerFactory.getLogger(MyAuthenticator.class);
     private static final String CHALLENGE = "authChallenge";
-    private static final String file = System.getProperty("user.dir") + "/file.json";
-    private Map<String,String> map;
-
+    private static final String file = System.getProperty("user.dir") + File.separator +"file.json";
+    private Map<String,String> registeredClientMap;
+    private static final ClientService clientService = Services.clientService();
     public MyAuthenticator(){
         try {
             ObjectMapper mapper = new ObjectMapper();
             // convert JSON file to map
             if (Files.notExists(Paths.get(file))) {
                 //create empty json file
-                byte[] tmp = "{}".getBytes();
-                ByteBuffer byteBuffer = ByteBuffer.wrap(tmp);
-                byteBuffer.flip();
                 Files.createFile(Paths.get(file));
-                FileChannel fileChannel = FileChannel.open(Paths.get(file));
-                while (byteBuffer.hasRemaining())
-                    fileChannel.write(byteBuffer);
-                byteBuffer.clear();
+                Files.write(Paths.get(file),"{}".getBytes());
             }
-            map = mapper.readValue(Paths.get(file).toFile(), Map.class);
+            registeredClientMap = mapper.readValue(Paths.get(file).toFile(), Map.class);
         } catch (Exception e) {
             log.error("Exception thrown at extension start: ", e);
         }
@@ -74,36 +71,46 @@ public class MyAuthenticator implements EnhancedAuthenticator{
             log.info("username not present");
         }
         else if(!connect.getUserName().isPresent()) {
-            //authentication method
-            log.info("username present in authentication" + usernameProperty.get());
-            username = usernameProperty.get();
-            if(authenticationMethod.isPresent()) {
-                log.info("authPresent " + authenticationMethod.get());
-                if(CHALLENGE.equals(authenticationMethod.get())) {
-                    log.info("authenticating client " + authenticationMethod.get());
-                    sendChallengeResponseAuth(enhancedAuthInput, enhancedAuthOutput, username);
-                }
-                else{
-                    log.info("challenge not equal " + authenticationMethod.get());
+            //checking if username is present in the map
+            if(!registeredClientMap.containsKey(usernameProperty.get())){
+                log.info("Client with username <" + usernameProperty.get() + "> is not registered!");
+                fail = true;
+            }
+            else {
+                //authentication method
+                log.info("Starting authentication for " + usernameProperty.get());
+                username = usernameProperty.get();
+                if (authenticationMethod.isPresent()) {
+                    log.info("AuthMechanism received: " + authenticationMethod.get());
+                    if (CHALLENGE.equals(authenticationMethod.get())) {
+                        log.info("Sending challenge");
+                        sendChallengeResponseAuth(enhancedAuthInput, enhancedAuthOutput, username);
+                    } else {
+                        log.info("challenge not equal " + authenticationMethod.get());
+                        fail = true;
+                    }
+                } else {
+                    log.info("auth not present");
                     fail = true;
                 }
-            }
-            else{
-                log.info("auth not present");
-                fail = true;
             }
         }
         else if(connect.getPassword().isPresent()) {
             //registration by simple auth
-            log.info("username present in registration");
             username = connect.getUserName().get();
-            String password = Charset.forName("UTF-8").decode(connect.getPassword().get()).toString();
-            if (!map.containsKey(username)) {
-                log.info("registering client");
+            log.info("Starting registration of " + username);
+            String password = StandardCharsets.UTF_8.decode(connect.getPassword().get()).toString();
+            if (!registeredClientMap.containsKey(username)) {
                 //Client not yet registered
                 boolean registrationOk = registerClient(username, password);
-                if (registrationOk) enhancedAuthOutput.authenticateSuccessfully();
-                else fail = true;
+                if (registrationOk){
+                    enhancedAuthOutput.authenticateSuccessfully();
+                    log.info("Registration success");
+                }
+                else{
+                    fail = true;
+                    log.info("Registration failed");
+                }
             } else fail = true;
         }
         else fail=true;
@@ -116,7 +123,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     public void onAuth(final @NotNull EnhancedAuthInput input, final @NotNull EnhancedAuthOutput output) {
     	log.info("BEGIN: onAuth");
     	final String authententicationMethod = input.getAuthPacket().getAuthenticationMethod();
-        log.info("auth method " + authententicationMethod);
+        log.info("auth method: " + authententicationMethod);
     	if(CHALLENGE.equals(authententicationMethod)) {
     		final Optional<String> safeLongEncrypted = input.getConnectionInformation().getConnectionAttributeStore().getAsString(CHALLENGE);
     		final Optional<byte[]> authenticationData = input.getAuthPacket().getAuthenticationDataAsArray();
@@ -126,9 +133,10 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     			output.failAuthentication();
     			return;
     		}
-    		log.info("safeLongEcrypted: " + safeLongEncrypted.get() + "! authenticationData: " + new String(authenticationData.get()));
+    		log.info("safeLongEcrypted: " + safeLongEncrypted.get() + " authenticationData: " + new String(authenticationData.get()));
     		if(safeLongEncrypted.get().equals(new String(authenticationData.get()))) {
     			output.authenticateSuccessfully();
+    			log.info("END: onAuth");
     			return;
     		}
     	}
@@ -145,11 +153,10 @@ public class MyAuthenticator implements EnhancedAuthenticator{
             byte[] pass_bytes = password.getBytes(StandardCharsets.UTF_8);
             pass_bytes = md.digest(pass_bytes);
             //add client to the json file
-            map.put(username, new String(pass_bytes));
-            log.info("map.put");
+            registeredClientMap.put(username, new String(pass_bytes));
             ObjectMapper mapper = new ObjectMapper();
-            mapper.writeValue(Paths.get(file).toFile(), map);
-            log.info("mapper.write value");
+            mapper.writeValue(Paths.get(file).toFile(), registeredClientMap);
+            log.info("Client registered");
         }
          catch (Exception e) {
             e.printStackTrace();
@@ -164,10 +171,9 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     private void sendChallengeResponseAuth(EnhancedAuthConnectInput input, EnhancedAuthOutput output, String username) {
     	log.info("BEGIN: sendChallengeResponseAuth");
     	String safeLong = String.valueOf(AES.getSafeLong());
-    	String password = map.get(username);
+    	String password = registeredClientMap.get(username);
     	String safeLongEncrypted = "";
-    	log.debug("safeLong: " + safeLong + " password: " + password);
-    	log.info("password "+ password);
+    	log.info("safeLong: " + safeLong + " password: " + password);
     	try {
     		AES.setKey(password);
 			safeLongEncrypted = AES.encrypt(safeLong);
@@ -178,7 +184,6 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     	input.getConnectionInformation()
     			.getConnectionAttributeStore()  //store data to verify client  
     				.putAsString(CHALLENGE, safeLongEncrypted); //store encrypted long on broker
-        log.info("safe long-> " + safeLong);
     	output.continueAuthentication(safeLong.getBytes(StandardCharsets.UTF_8)); //send plain long to the client
     	log.info("END: sendChallengeResponseAuth");
     }
