@@ -4,23 +4,8 @@ public class Arguments{
 
     private String username;
     private String password;
-    private boolean authMethod;
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public boolean isRegisterMethod() {
-        return authMethod;
-    }
-
-    public void setAuthMethod(boolean authMethod) {
-        this.authMethod = authMethod;
-    }
+    private String ip;
+    private boolean registerPhase;
 
     public String getUsername() {
         return username;
@@ -30,4 +15,27 @@ public class Arguments{
         this.username = username;
     }
 
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    public boolean isRegisterPhase() {
+        return registerPhase;
+    }
+
+    public void setRegisterPhase(boolean registerPhase) {
+        this.registerPhase = registerPhase;
+    }
 }

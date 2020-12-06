@@ -20,14 +20,15 @@ import com.hivemq.extension.sdk.api.annotations.NotNull;
 import cryptographic.DHEEC;
 import cryptographic.DHEECException;
 
-import javax.sql.rowset.spi.SyncFactoryException;
 
 
 public class ChallengeResponseClient {
     //constants and global state
     private static Arguments clientArgs;
     private static DHEEC dheec = null;
-    private static  Mqtt5Client client = null;
+    private static Mqtt5Client client = null;
+    private static final String DEFAULT_ADDRESS = "localhost";
+    private static final int HIVEPORT = 1883;
     private static final String AGREE_KEY = "agreekey";
     private static final String SEND_MESSAGE = "send-message";
     private static final String QUIT = "quit";
@@ -46,11 +47,11 @@ public class ChallengeResponseClient {
 
         client = Mqtt5Client.builder()
                 .identifier(UUID.randomUUID().toString())
-                .serverHost("95.247.127.108")
-                .serverPort(1883)
+                .serverHost("".equals(clientArgs.getIp()) ? DEFAULT_ADDRESS : clientArgs.getIp())
+                .serverPort(HIVEPORT)
                 .build();
         try {
-            if (clientArgs.isRegisterMethod()) {
+            if (clientArgs.isRegisterPhase()) {
                 client.toBlocking()
                         .connectWith()
                         .simpleAuth()
@@ -147,26 +148,36 @@ public class ChallengeResponseClient {
 
     /**
      *
-     * @param args
+     * @param args command line to parse
      * @biref parser of args
      */
     private static void checkInput(String[] args){
-
-        if(args.length != 4 && args.length != 5) throw new IllegalArgumentException("Username and password required");
+        //checking constraints
+        if(args.length  < 4 || args.length > 7 )
+            throw new IllegalArgumentException("Username and password required");
         if(!args[0].equals("-u") && !args[2].equals("-p")) throw new IllegalArgumentException("Bad arguments");
-        if(args.length == 5 && (!args[4].equals("-r")
-                && !args[4].equals("--register"))) throw new IllegalArgumentException("Bad arguments");
-
+        if(args.length == 5 && !args[4].equals("-r") && args[4].equals("-i"))
+            throw new IllegalArgumentException("Bad arguments");
+        if(args.length == 6 && !args[4].equals("-i"))
+            throw new IllegalArgumentException("Bad arguments");
+        if(args.length == 7  && !args[5].equals("-i") && !args[4].equals("-r"))
+            throw new IllegalArgumentException("Bad arguments");
+        //getting parameters
         clientArgs = new Arguments();
         clientArgs.setUsername(args[1].trim());
         clientArgs.setPassword(args[3].trim());
-        clientArgs.setAuthMethod(args.length == 5);
+        //check if -r has been passed
+        clientArgs.setRegisterPhase((args.length == 5 || args.length == 7) && args[4].equals("-r"));
+        //check if -i has been passed then get ip address else empty string
+        clientArgs.setIp(args.length == 7 ? args[6].trim() :
+                args.length == 6 ?  args[5].trim() : "");
     }
 
     private static void printUsage(){
 
         System.out.println("USAGE:");
-        System.out.println("java ChallengeResponseClient -u [username] -p [password] -r [to register]");
+        System.out.println("java ChallengeResponseClient -u [username] -p [password] -r [to register]"
+                            +" -i [hive ip address]");
         System.out.flush();
     }
 
