@@ -56,7 +56,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
 
     @Override
     public void onConnect(EnhancedAuthConnectInput enhancedAuthInput, EnhancedAuthOutput enhancedAuthOutput) {
-        log.info("BEGIN: onConnect");
+        log.info("Received connection request");
         //get the contents of the MQTT connect packet from the input object
         ConnectPacket connect = enhancedAuthInput.getConnectPacket();
         final Optional<String> authenticationMethod = connect.getAuthenticationMethod();
@@ -68,7 +68,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
         //username is always required
         if (!connect.getUserName().isPresent() && (!usernameProperty.isPresent() || usernameProperty.isEmpty() )) {
             fail = true;
-            log.info("username not present");
+            log.info("Username not specified");
         }
         else if(!connect.getUserName().isPresent()) {
             //checking if username is present in the map
@@ -83,14 +83,13 @@ public class MyAuthenticator implements EnhancedAuthenticator{
                 if (authenticationMethod.isPresent()) {
                     log.info("AuthMechanism received: " + authenticationMethod.get());
                     if (CHALLENGE.equals(authenticationMethod.get())) {
-                        log.info("Sending challenge");
                         sendChallengeResponseAuth(enhancedAuthInput, enhancedAuthOutput, username);
                     } else {
-                        log.info("challenge not equal " + authenticationMethod.get());
+                        log.info("Challenge not corresponding " + authenticationMethod.get());
                         fail = true;
                     }
                 } else {
-                    log.info("auth not present");
+                    log.info("Authentication method not present");
                     fail = true;
                 }
             }
@@ -111,73 +110,78 @@ public class MyAuthenticator implements EnhancedAuthenticator{
                     fail = true;
                     log.info("Registration failed");
                 }
-            } else fail = true;
+            } else{
+                log.info("User already registered");
+                fail = true;
+            }
         }
         else fail=true;
 
-        if(fail) enhancedAuthOutput.failAuthentication();
-        log.info("END: onConnect");
+        if(fail)enhancedAuthOutput.failAuthentication();
+        log.info("Finished connection phase");
+        log.info("\n");
     }
 
     @Override
     public void onAuth(final @NotNull EnhancedAuthInput input, final @NotNull EnhancedAuthOutput output) {
-    	log.info("BEGIN: onAuth");
+    	log.info("Starting authentication");
     	final String authententicationMethod = input.getAuthPacket().getAuthenticationMethod();
-        log.info("auth method: " + authententicationMethod);
+        log.info("Authentication method: " + authententicationMethod);
     	if(CHALLENGE.equals(authententicationMethod)) {
     		final Optional<String> safeLongEncrypted = input.getConnectionInformation().getConnectionAttributeStore().getAsString(CHALLENGE);
     		final Optional<byte[]> authenticationData = input.getAuthPacket().getAuthenticationDataAsArray();
 
     		if(safeLongEncrypted.isEmpty() || authenticationData.isEmpty()) {
-                log.info("empty");
+                log.info("No data detected");
     			output.failAuthentication();
     			return;
     		}
-    		log.info("safeLongEcrypted: " + safeLongEncrypted.get() + " authenticationData: " + new String(authenticationData.get()));
+    		log.info("SafeLongEcrypted: " + safeLongEncrypted.get());
+    		log.info("Encrypted long received: " + new String(authenticationData.get()));
     		if(safeLongEncrypted.get().equals(new String(authenticationData.get()))) {
     			output.authenticateSuccessfully();
-    			log.info("END: onAuth");
+    			log.info("Authentication successful");
     			return;
     		}
     	}
     	output.failAuthentication();
-    	log.info("END: onAuth failed");
+    	log.info("Authentication failed");
     }
 
     private boolean registerClient(String username, String password) {
-        log.info("BEGIN: registerClient");
+        //log.info("BEGIN: registerClient");
         MessageDigest md = null;
         try {
             md = MessageDigest.getInstance("SHA-256");
-            log.info("generated md");
+            log.info("Generated message digest for hashing");
             byte[] pass_bytes = password.getBytes(StandardCharsets.UTF_8);
             pass_bytes = md.digest(pass_bytes);
             //add client to the json file
             registeredClientMap.put(username, new String(pass_bytes));
             ObjectMapper mapper = new ObjectMapper();
             mapper.writeValue(Paths.get(file).toFile(), registeredClientMap);
-            log.info("Client registered");
+            //log.info("Client registered");
         }
          catch (Exception e) {
             e.printStackTrace();
             log.error("Error while creating json file");
-            log.info("END: registerClient (failed)");
+            //log.info("END: registerClient (failed)");
             return false;
         }
-        log.info("END: registerClient");
+        //log.info("END: registerClient");
         return true;
     }
     
     private void sendChallengeResponseAuth(EnhancedAuthConnectInput input, EnhancedAuthOutput output, String username) {
-    	log.info("BEGIN: sendChallengeResponseAuth");
+    	log.info("Sending challenge...");
     	String safeLong = String.valueOf(AES.getSafeLong());
     	String password = registeredClientMap.get(username);
     	String safeLongEncrypted = "";
-    	log.info("safeLong: " + safeLong + " password: " + password);
+    	log.info("SafeLong: " + safeLong + " Password: " + password);
     	try {
     		AES.setKey(password);
 			safeLongEncrypted = AES.encrypt(safeLong);
-			log.info("safeLongEncrypted: " + safeLongEncrypted);
+			log.info("SafeLongEncrypted: " + safeLongEncrypted);
 		} catch (AesException e) {
 			log.error("Exception thrown at AES.encrypt: ", e);
 		}
@@ -185,7 +189,7 @@ public class MyAuthenticator implements EnhancedAuthenticator{
     			.getConnectionAttributeStore()  //store data to verify client  
     				.putAsString(CHALLENGE, safeLongEncrypted); //store encrypted long on broker
     	output.continueAuthentication(safeLong.getBytes(StandardCharsets.UTF_8)); //send plain long to the client
-    	log.info("END: sendChallengeResponseAuth");
+    	log.info("Wait for resposne...");
     }
     
 }
