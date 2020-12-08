@@ -1,59 +1,25 @@
-:hivemq-link: http://www.hivemq.com
-:hivemq-extension-docs-link: http://www.hivemq.com/docs/extensions/latest/
-:hivemq-extension-docs-archetype-link: http://www.hivemq.com/docs/extensions/latest/#maven-archetype-chapter
-:hivemq-blog-tools: http://www.hivemq.com/mqtt-toolbox
-:maven-documentation-profile-link: http://maven.apache.org/guides/introduction/introduction-to-profiles.html
-:hivemq-support: http://www.hivemq.com/support/
-:hivemq-testcontainer: https://github.com/hivemq/hivemq-testcontainer
-:hivemq-mqtt-client: https://github.com/hivemq/hivemq-mqtt-client
-
-== HiveMQ 4 Hello World Extension
-
-*Type*: Demonstration Extension
-
-*Version*: 4.4.2
-
-*License*: Apache License Version 2.0
+# HiveMQ Challenge Response Authentication Extension
 
 === Purpose
 
-This Hello World extension sets a ClientLifecycleEventListener which logs
-the MQTT Version and identifier of every connecting and disconnecting client and
-registers a PublishInboundInterceptor to modify the payload of every Publish with the topic 'hello/world' to 'Hello World!'.
+The Challenge Response Authentication extension performs MQTT Client authentication
+without direct exchange of credentials in post-registration sessions.
 
-There is {hivemq-extension-docs-archetype-link}[a Maven Archetype available]
-to generate a basic extension from the IDE.
+It has been added a further field “authMethod” to the authentication packet that specifies the type of authentication.
+So a client authentication phase can be described as follow:
+1) If a client is not registered, takes place a Simple Authentication where the broker saves the client credentials locally (hashed password)
+2) If the client is already registered, takes place a Challenge-Response Authentication where the broker will send a challenge based on the client password
 
-We strongly recommend to read the {hivemq-extension-docs-link}[HiveMQ Extension Documentation]
-to grasp the core concepts of HiveMQ extension development.
+Tha authentication works as follow:
+  1- Broker sends a long number powered by secure random numbers generator.
+  2- Client encrypt it with AES by means of SHA-256 of its password as key and sends cipher text obtained to the broker.
+  3- Broker compares the cipher text received from the client and that which has been computed from itself
+  4- If they are equal then AUTHENTICATION SUCCESSFUL else AUTHENTICATION DENIED
 
 === Installation
 
 . Clone this repository into a Java 11 maven project.
 . Run `mvn package` goal from Maven to build the extension.
-. Move the file: "target/hivemq-hello-world-extension-4.4.2-distribution.zip" to the directory: "HIVEMQ_HOME/extensions"
+. Move the file: "target/HiveMQExtension-1.0.0-distribution.zip" to the directory: "HIVEMQ_HOME/extensions"
 . Unzip the file.
 . Start HiveMQ.
-
-=== First Steps
-
-==== Manual Testing
-
-Connect with an {hivemq-blog-tools}[MQTT client] of your choice. You should see a log message with its identifier and MQTT version.
-
-==== Automatic Testing
-
-Execute the `HelloWorldInterceptorIT` for automatic testing of the extension.
-It uses the {hivemq-testcontainer}[HiveMQ Testcontainer] to automatically package, deploy and run the extension inside a HiveMQ docker container.
-The test creates a {hivemq-mqtt-client}[HiveMQ MQTT Client] to publish and receive a message with the topic 'hello/world'.
-It checks whether the payload has been changed correctly to 'Hello World!'.
-
-=== Next steps
-
-Awesome, you got your first HiveMQ 4 extension working.
-
-Now read the {hivemq-extension-docs-link}[HiveMQ Extension Documentation] to see what extensions can do.
-
-=== Need help?
-
-If you encounter any problems, we are happy to help. The best place to get in contact is our {hivemq-support}[support].
