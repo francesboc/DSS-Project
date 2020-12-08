@@ -65,7 +65,7 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
     		data.get().get(dataByte);
     		String safeLong = new String(dataByte);
             System.out.println(safeLong);
-    		log.info("challenge received "+safeLong);
+    		log.info("challenge received: "+safeLong);
     		try {
                 MessageDigest md = null;
                 try {
@@ -78,7 +78,7 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
                 AES.setKey(new String(pass_bytes));
 
 				String safeLongEncrypted = AES.encrypt(safeLong);
-                log.info("challenge received encrypted "+safeLongEncrypted);
+                log.info("challenge received encrypted: "+safeLongEncrypted);
 				authBuilder.data(safeLongEncrypted.getBytes(StandardCharsets.UTF_8));
 				return CompletableFuture.completedFuture(true);
 			} catch (AesException e) {
@@ -93,7 +93,7 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
 
     @Override
     public @NotNull CompletableFuture<Boolean> onAuthSuccess(@NotNull Mqtt5ClientConfig clientConfig, @NotNull Mqtt5ConnAck connAck) {
-        log.log(Level.SEVERE,"authentication successful");
+        log.log(Level.SEVERE,"AUTHENTICATION SUCCESSFUL");
 
         return CompletableFuture.completedFuture(true);
     }
@@ -102,10 +102,9 @@ public class ChallengeResponseAuthMechanism implements Mqtt5EnhancedAuthMechanis
     public @NotNull CompletableFuture<Boolean> onReAuthSuccess(@NotNull Mqtt5ClientConfig clientConfig, @NotNull Mqtt5Auth auth) {
         return CompletableFuture.completedFuture(null);
     }
-
     @Override
     public void onAuthRejected(@NotNull Mqtt5ClientConfig clientConfig, @NotNull Mqtt5ConnAck connAck) {
-        log.log(Level.SEVERE,"authentication rejected");
+        log.log(Level.SEVERE,"AUTHENTICATION REJECTED");
         System.exit(1);
 
 

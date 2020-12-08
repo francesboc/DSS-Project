@@ -176,7 +176,7 @@ public class ChallengeResponseClient {
     private static void printUsage(){
 
         System.out.println("USAGE:");
-        System.out.println("java ChallengeResponseClient -u [username] -p [password] -r [to register]"
+        System.out.println("ChallengeResponseClient -u [username] -p [password] -r [to register]"
                             +" -i [hive ip address]");
         System.out.flush();
     }
@@ -212,7 +212,7 @@ public class ChallengeResponseClient {
                             log.log(Level.SEVERE,"decryption failed due to: "+e.getMessage());
                             return;
                         }
-                        log.log(Level.INFO,"decrypted message "+decryptedMessage);
+                        log.log(Level.INFO,"decrypted message: "+decryptedMessage);
 
                     } //someone who this wants to agree symmetric key has published its public key
                     else if(topicLevels.contains("pubKey") && topicLevels.indexOf("pubKey") == topicLevels.lastIndexOf("pubKey")
@@ -240,7 +240,7 @@ public class ChallengeResponseClient {
      */
     private static void publishData(String topic, byte[] data) {
 
-       log.log(Level.INFO,"BEGIN publish "+toString(data)+" at topic "+topic);
+       log.log(Level.INFO,"BEGIN publish "+toString(data)+" on topic "+topic);
         boolean isRetain = !topic.contains("messages");
         client.toBlocking().publishWith()
                 .topic(topic)
@@ -272,7 +272,7 @@ public class ChallengeResponseClient {
      * @brief send encrypted message to receiverUser
      */
     private static void sendMessage(String receiverUser, String message) throws AesException {
-        log.log(Level.INFO,"BEGIN sendMessage: user " + receiverUser + " message " +message);
+        log.log(Level.INFO,"BEGIN sendMessage: receiver " + receiverUser + " message " +message);
         String encryptedMessage = "";
 
         if(!keySessionData.containsKey(receiverUser)){
