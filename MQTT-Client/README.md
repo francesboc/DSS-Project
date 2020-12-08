@@ -17,7 +17,7 @@ This client implements also a secure E2E communication with other MQTT Clients.
 Let’s take for example two clients A and B.
 Both, after authenticating, publish their public key on username/pubKey topic
 When A wants to send a message to B:
-. A must agree the key with B
-. A subscribes itself to topic B/pubKey and to topic B/A/messages 
-. A publish on topic A/B/messages the encrypted message
+A must agree the key with B
+A subscribes itself to topic B/pubKey and to topic B/A/messages 
+A publish on topic A/B/messages the encrypted message
 In this way B will receive A’s messages only when it will perform key agreement, then it will be able to decode them by means of agreed key.
